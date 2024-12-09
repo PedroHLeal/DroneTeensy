@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "cstddef": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "iterator": "cpp"
     }
 }

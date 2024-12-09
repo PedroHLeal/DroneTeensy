@@ -19,10 +19,11 @@
 // SHOW CALIBRATION VALUES 8
 // TEST PX4FLOW 9
 #define RUNNING_PROGRAM 0
+// #define DEBUG_MODE
 
 Motors *m;
 Gyro *g;
-RangeSensor *range, *sr04;
+RangeSensor *currentRange, *otherRange, *sr04, *gy;
 ControllerReadings cr;
 PX4Flow *px4flow;
 DronePosition p;
@@ -33,15 +34,15 @@ uint32_t loopTimer;
 void updateSensors(float dt)
 {
   g->updateData(dt);
-  sr04->update();
+  currentRange->update();
   px4flow->update_integral();
 }
 
 void calculatePid()
 {
   calculatePidThrottle(&p, cr, e);
-  // calculatePidVelX(&p, cr, px4flow, sr04);
-  // calculatePidVelY(&p, cr, px4flow, sr04);
+  calculatePidVelX(&p, cr, e);
+  calculatePidVelY(&p, cr, e);
   calculatePidPitch(&p, cr, g);
   calculatePidRoll(&p, cr, g);
   calculatePidPitchRate(&p, cr, g);
@@ -52,14 +53,19 @@ void calculatePid()
 void runDrone(float dt)
 {
   getRemoteCommands(&cr);
+#ifndef DEBUG_MODE
   if (cr.armed)
+#else
+  if (true)
+#endif
   {
     updateSensors(dt);
-    e->calculateEstimations(g, px4flow, sr04, dt);
+    e->calculateEstimations(g, px4flow, currentRange, dt);
     calculatePid();
-    // Serial.println(p.usePositioning);
-    // Serial.println(String(p.throttle) + " " + String(p.pitch) + " " + String(p.yaw));
-    m->writeDronePosition(p);
+    // Serial.println(e->estimatedVelZ);
+#ifndef DEBUG_MODE
+    m->writeDronePosition(&p);
+#endif
   }
   else
   {
@@ -81,18 +87,20 @@ void setup()
 
   m = MotorsSingleton::getInstance();
   g = GyroSingleton::getInstance();
-  range = RangeSensorSingleton::getInstance(GYUS42);
+  gy = RangeSensorSingleton::getInstance(GYUS42);
   sr04 = RangeSensorSingleton::getInstance(HC_SR04);
   px4flow = PX4FlowSingleton::getPX4FlowInstance();
-
+  currentRange = sr04;
   loopTimer = micros();
 
   if (RUNNING_PROGRAM == 0 || RUNNING_PROGRAM == 7)
   {
+#ifndef DEBUG_MODE
     m->writeAll(180);
     delay(15000);
     m->writeAll(0);
     delay(10000);
+#endif
     g->readCalibration();
   }
 }
@@ -112,8 +120,8 @@ void loop()
     delay(100);
     break;
   case 3:
-    sr04->test();
-    delay(20);
+    gy->test();
+    // delay(10);
     break;
   case 5:
     g->calibrate();

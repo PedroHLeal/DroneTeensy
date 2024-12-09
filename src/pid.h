@@ -8,13 +8,13 @@
 #include "sensors/px4flow.h"
 #include "estimations.h"
 
-#define THROTTLE_P_GAIN 0.04
-#define THROTTLE_I_GAIN 0.003
-#define THROTTLE_D_GAIN 5
+#define THROTTLE_P_GAIN 0.1
+#define THROTTLE_I_GAIN 0.001
+#define THROTTLE_D_GAIN 4
 
 #define VEL_P_GAIN 1
-#define VEL_I_GAIN 1
-#define VEL_D_GAIN 1
+#define VEL_I_GAIN 0.0
+#define VEL_D_GAIN 2
 
 #define PITCH_ROLL_P_GAIN 8
 
@@ -62,11 +62,12 @@ typedef struct
     float previousRollRateError = 0;
 
     float yaw = 0;
+    bool emergencyQuit = false;
 } DronePosition;
 
 void calculatePidThrottle(DronePosition *p, ControllerReadings r, Estimator* e);
-void calculatePidVelX(DronePosition *p, ControllerReadings r, PX4Flow* px4, RangeSensor* rs);
-void calculatePidVelY(DronePosition *p, ControllerReadings r, PX4Flow* px4, RangeSensor* rs);
+void calculatePidVelX(DronePosition *p, ControllerReadings r, Estimator* e);
+void calculatePidVelY(DronePosition *p, ControllerReadings r, Estimator* e);
 void calculatePidPitch(DronePosition *p, ControllerReadings r, Gyro* g);
 void calculatePidRoll(DronePosition *p, ControllerReadings r, Gyro* g);
 void calculatePidPitchRate(DronePosition *p, ControllerReadings r, Gyro* g);

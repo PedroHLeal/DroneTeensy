@@ -89,7 +89,9 @@ bool PX4Flow::update_integral()
     // wait for all data to be available
     // TODO we could manage a timeout in order not to block
     // the loop when no component is connected
-    delay(1);
+    if (!wait(26)) { 
+        return false;
+    }
 
     // read the data
     iframe.frame_count_since_last_readout = read16();
@@ -247,8 +249,8 @@ float PX4Flow::get_vel_x(float ground_distance)
 
     float pixel_x = flow_x - x_rate;
 
-    // lp_filterX->input(pixel_x);
-    // pixel_x = lp_filterX->output();
+    lp_filterX->input(pixel_x);
+    pixel_x = lp_filterX->output();
 
     return pixel_x * ground_distance / timespan;
 }
@@ -262,8 +264,8 @@ float PX4Flow::get_vel_y(float ground_distance)
 
     float pixel_y = flow_y - y_rate;
 
-    // lp_filterY->input(pixel_y);
-    // pixel_y = lp_filterY->output();
+    lp_filterY->input(pixel_y);
+    pixel_y = lp_filterY->output();
 
     return pixel_y * ground_distance / timespan;
 }

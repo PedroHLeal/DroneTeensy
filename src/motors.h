@@ -17,6 +17,7 @@ class Motors
 {
 private:
   Servo motor_fl, motor_fr, motor_rl, motor_rr;
+  float lastMotorFL = 0, lastMotorFR = 0, lastMotorRL = 0, lastMotorRR = 0;
 
 public:
   Motors();
@@ -29,7 +30,7 @@ public:
   void writeRL(int intensity);
   void writeRR(int intensity);
   void writeAll(int intensity);
-  void writeDronePosition(DronePosition p);
+  void writeDronePosition(DronePosition* p);
   void testMotors();
 };
 

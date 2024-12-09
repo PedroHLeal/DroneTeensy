@@ -79,24 +79,46 @@ void Motors::writeAll(int intensity)
     motor_rr.write(intensity);
 }
 
-void Motors::writeDronePosition(DronePosition p)
+void Motors::writeDronePosition(DronePosition *p)
 {
-    float frontIntensity = p.pitch;
-    float rearIntensity = -p.pitch;
-    float rightIntensity = -p.roll;
-    float leftIntensity = p.roll;
+    if (p->emergencyQuit)
+    {
+        writeAll(0);
+        return;
+    }
 
-    // float motorFl = p.throttle + leftIntensity + frontIntensity;
-    // float motorFR = p.throttle + rightIntensity + frontIntensity;
-    // float motorRL = p.throttle + leftIntensity + rearIntensity;
-    // float motorRR = p.throttle + rightIntensity + rearIntensity;
+    float frontIntensity = p->pitch;
+    float rearIntensity = -p->pitch;
+    float rightIntensity = -p->roll;
+    float leftIntensity = p->roll;
+
+    float motorFL = p->throttle + leftIntensity + frontIntensity + p->yaw;
+    float motorFR = p->throttle + rightIntensity + frontIntensity - p->yaw;
+    float motorRL = p->throttle + leftIntensity + rearIntensity - p->yaw;
+    float motorRR = p->throttle + rightIntensity + rearIntensity + p->yaw;
 
     // Serial.println(String(motorFl) + " " + String(motorFR) + " " + String(motorRL) + " " + String(motorRR));
 
-    writeFL(p.throttle + leftIntensity + frontIntensity + p.yaw);
-    writeFR(p.throttle + rightIntensity + frontIntensity - p.yaw);
-    writeRL(p.throttle + leftIntensity + rearIntensity - p.yaw);
-    writeRR(p.throttle + rightIntensity + rearIntensity + p.yaw);
+    if ((motorFL - lastMotorFL) > 50 || (motorFL - lastMotorFL) < -50 || (motorFR - lastMotorFR) > 50 || (motorFR - lastMotorFR) < -50 || (motorRL - lastMotorRL) > 50 || (motorRL - lastMotorRL) < -50 || (motorRR - lastMotorRR) > 50 || (motorRR - lastMotorRR) < -50)
+    {
+        // p->emergencyQuit = true;
+    }
+
+    if (p->emergencyQuit)
+    {
+        writeAll(0);
+        return;
+    }
+
+    lastMotorFL = motorFL;
+    lastMotorFR = motorFR;
+    lastMotorRL = motorRL;
+    lastMotorRR = motorRR;
+
+    writeFL(motorFL);
+    writeFR(motorFR);
+    writeRL(motorRL);
+    writeRR(motorRR);
 }
 
 void Motors::testMotors()

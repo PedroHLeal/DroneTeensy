@@ -7,41 +7,42 @@ FilterOnePole *lpFilter = new FilterOnePole(LOWPASS, 5);
 
 void calculatePidThrottle(DronePosition *p, ControllerReadings r, Estimator *e)
 {
-    float throttleError = r.targetThrottle - e->estimatedVelZ;
+    float throttleError = r.targetThrottle * 10 - (e->positionY - 40);
     p->throttleI += throttleError * THROTTLE_I_GAIN;
 
-    lpFilter->input((throttleError - p->previousThrottleError) * THROTTLE_D_GAIN);
-    p->throttle = throttleError * THROTTLE_P_GAIN + p->throttleI + (lpFilter->output());
+    p->throttle = constrain(throttleError * THROTTLE_P_GAIN + p->throttleI + (throttleError - p->previousThrottleError) * THROTTLE_D_GAIN, 0, 140);
     // p->throttle = r.targetThrottle;
     // Serial.println(p->throttle);
     p->previousThrottleError = throttleError;
 }
 
-void calculatePidVelX(DronePosition *p, ControllerReadings r, PX4Flow *px4, RangeSensor *rs)
+void calculatePidVelX(DronePosition *p, ControllerReadings r, Estimator* e)
 {
-    if (px4->quality_integral() < 100)
+    if (!e->isPositioningAvailable)
     {
         p->usePositioning = false;
         return;
     }
     p->usePositioning = true;
-    float velXError = px4->get_vel_x(rs->distance) + r.setPointPitch;
-    p->velXI += velXError * VEL_I_GAIN;
-    p->setPointPitch = -(velXError * VEL_P_GAIN + p->velXI + (velXError - p->previousVelXError) * VEL_D_GAIN);
+    float velXError = r.setPointRoll/2.5 - e->estimatedVelX;
+    p->velXI += constrain(velXError * VEL_I_GAIN, -5, 5);
+    p->setPointRoll = velXError * VEL_P_GAIN + p->velXI + (velXError - p->previousVelXError) * VEL_D_GAIN;
+    // Serial.println(p->setPointRoll);
     p->previousVelXError = velXError;
 }
 
-void calculatePidVelY(DronePosition *p, ControllerReadings r, PX4Flow *px4, RangeSensor *rs)
+void calculatePidVelY(DronePosition *p, ControllerReadings r, Estimator* e)
 {
-    if (px4->quality_integral() < 100)
+    if (!e->isPositioningAvailable)
     {
         p->usePositioning = false;
         return;
     }
     p->usePositioning = true;
-    float velYError = px4->get_vel_y(rs->distance) + r.setPointRoll;
-    p->velYI += velYError * VEL_I_GAIN;
-    p->setPointRoll = -(velYError * VEL_P_GAIN + p->velYI + (velYError - p->previousVelYError) * VEL_D_GAIN);
+    float velYError = r.setPointPitch/2.5 + e->estimatedVelY;
+    p->velYI += constrain(velYError * VEL_I_GAIN, -5, 5);
+    p->setPointPitch = velYError * VEL_P_GAIN + p->velYI + (velYError - p->previousVelYError) * VEL_D_GAIN;
+    // Serial.println(p->setPointPitch);
     p->previousVelYError = velYError;
 }
 
@@ -107,4 +108,7 @@ void resetPid(DronePosition *p)
     p->rollRateI = 0;
     p->previousRollRateError = 0;
     p->yaw = 0;
+    p->emergencyQuit = 0;
+    p->velXI = 0;
+    p->velYI = 0;
 }
