@@ -98,7 +98,7 @@ void getRemoteCommands(ControllerReadings *r)
       }
       r->armed = (String(value).toInt()) == 1800;
       
-      r->desiredHeight += r->targetThrottle * 0.5;
+      // r->desiredHeight += r->targetThrottle * 0.5;
 
       // Serial.println(String(r->targetThrottle) + " " + String(r->setPointPitch) + " " + String(r->setPointRoll) + " " + String(r->armed));
       

@@ -58,5 +58,7 @@ float Kalman2d::filter(
     M = {Measurement};
     S = S + K * (M - H * S);
     P = (I - K * H) * P;
+    s00 = S(0, 0);
+    s10 = S(1, 0);
     return S(0, 0);
 }

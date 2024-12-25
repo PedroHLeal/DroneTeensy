@@ -6,6 +6,7 @@
 #include "comms/controller_readings.h"
 #include "comms/bluetooth.h"
 #include "sensors/px4flow.h"
+#include "sensors/mtf02p.h"
 #include "pid.h"
 #include "estimations.h"
 
@@ -18,14 +19,14 @@
 // TEST MOTORS 7
 // SHOW CALIBRATION VALUES 8
 // TEST PX4FLOW 9
+// CALIBRATE OPT_FLOW 10
 #define RUNNING_PROGRAM 0
 // #define DEBUG_MODE
 
 Motors *m;
 Gyro *g;
-RangeSensor *currentRange, *otherRange, *sr04, *gy;
 ControllerReadings cr;
-PX4Flow *px4flow;
+MTF02P *mtf02p;
 DronePosition p;
 Estimator *e = new Estimator();
 float currentTime, lastTime = 0;
@@ -34,20 +35,32 @@ uint32_t loopTimer;
 void updateSensors(float dt)
 {
   g->updateData(dt);
-  currentRange->update();
-  px4flow->update_integral();
+  mtf02p->update();
 }
 
 void calculatePid()
 {
+  // p.useZPositioning = true;
+  // calculatePidPosZ(&p, cr, e);
   calculatePidThrottle(&p, cr, e);
-  calculatePidVelX(&p, cr, e);
-  calculatePidVelY(&p, cr, e);
+
+  if (e->isPositioningAvailable) {
+    calculatePidPosX(&p, cr, e);
+    calculatePidPosY(&p, cr, e);
+    p.usePositioning = true;
+    calculatePidVelX(&p, cr, e);
+    calculatePidVelY(&p, cr, e);
+    p.usePositioning = true;
+  }
+
   calculatePidPitch(&p, cr, g);
   calculatePidRoll(&p, cr, g);
   calculatePidPitchRate(&p, cr, g);
   calculatePidRollRate(&p, cr, g);
   calculatePidYaw(&p, g);
+
+  p.usePositioning = false;
+  p.useZPositioning = false;
 }
 
 void runDrone(float dt)
@@ -60,7 +73,7 @@ void runDrone(float dt)
 #endif
   {
     updateSensors(dt);
-    e->calculateEstimations(g, px4flow, currentRange, dt);
+    e->calculateEstimations(g, mtf02p, dt);
     calculatePid();
     // Serial.println(e->estimatedVelZ);
 #ifndef DEBUG_MODE
@@ -71,6 +84,7 @@ void runDrone(float dt)
   {
     resetPid(&p);
     cr.desiredHeight = 0;
+    e->resetEstimations();
     g->resetState();
     m->writeAll(0);
   }
@@ -83,14 +97,12 @@ void setup()
 {
   Serial.begin(9600);
   Serial1.begin(9600);
+  Serial2.begin(115200);
   Wire.begin();
 
   m = MotorsSingleton::getInstance();
   g = GyroSingleton::getInstance();
-  gy = RangeSensorSingleton::getInstance(GYUS42);
-  sr04 = RangeSensorSingleton::getInstance(HC_SR04);
-  px4flow = PX4FlowSingleton::getPX4FlowInstance();
-  currentRange = sr04;
+  mtf02p = MTF02PSingleton::getMTF02PInstance();
   loopTimer = micros();
 
   if (RUNNING_PROGRAM == 0 || RUNNING_PROGRAM == 7)
@@ -119,10 +131,10 @@ void loop()
     g->test();
     delay(100);
     break;
-  case 3:
-    gy->test();
-    // delay(10);
-    break;
+  // case 3:
+  //   gy->test();
+  //   // delay(10);
+  //   break;
   case 5:
     g->calibrate();
     break;
@@ -137,9 +149,16 @@ void loop()
   case 8:
     g->showCalibrationValues();
     break;
-  case 9:
-    px4flow->test();
-    delay(70);
+  // case 9:
+  //   px4flow->test();
+  //   delay(70);
+  //   break;
+  case 10:
+    g->updateData(dt);
+    mtf02p->update();
+    float cX = mtf02p->calibrateX(g->gY);
+    float cY = mtf02p->calibrateY(g->gX);
+    Serial.println(String(cX) + " " + String(cY));
     break;
   }
 

@@ -8,19 +8,22 @@
 #include "sensors/px4flow.h"
 #include "estimations.h"
 
+#define VEL_Z_P 2
 #define THROTTLE_P_GAIN 0.1
 #define THROTTLE_I_GAIN 0.001
-#define THROTTLE_D_GAIN 4
+#define THROTTLE_D_GAIN 6
 
-#define VEL_P_GAIN 1
-#define VEL_I_GAIN 0.0
-#define VEL_D_GAIN 2
+#define POS_P_GAIN 0.04
 
-#define PITCH_ROLL_P_GAIN 8
+#define VEL_P_GAIN 0.3
+#define VEL_I_GAIN 0.0003
+#define VEL_D_GAIN 5
+
+#define PITCH_ROLL_P_GAIN 4
 
 #define PITCH_ROLL_RATE_P_GAIN 0.03
 #define PITCH_ROLL_RATE_I_GAIN 0.0008
-#define PITCH_ROLL_RATE_D_GAIN 0.3
+#define PITCH_ROLL_RATE_D_GAIN 0.5
 
 #define YAW_P_GAIN 0.5
 #define MAX_RATE 20
@@ -29,11 +32,14 @@ typedef struct
 {
     float armed = 0;
 
+    float targetVelX = 0;
     float velX = 0;
     float velXI = 0;
     float previousVelXError = 0;
     float usePositioning = false;
+    float useZPositioning = false;
 
+    float targetVelY = 0;
     float velY = 0;
     float velYI = 0;
     float previousVelYError = 0;
@@ -44,6 +50,7 @@ typedef struct
     float throttle = 0;
     float throttleI = 0;
     float previousThrottleError = 0;
+    float targetVelZ = 0;
 
     float pitch = 0;
     float pitchI = 0;
@@ -65,7 +72,10 @@ typedef struct
     bool emergencyQuit = false;
 } DronePosition;
 
+void calculatePidPosZ(DronePosition *p, ControllerReadings r, Estimator* e);
 void calculatePidThrottle(DronePosition *p, ControllerReadings r, Estimator* e);
+void calculatePidPosX(DronePosition *p, ControllerReadings r, Estimator* e);
+void calculatePidPosY(DronePosition *p, ControllerReadings r, Estimator* e);
 void calculatePidVelX(DronePosition *p, ControllerReadings r, Estimator* e);
 void calculatePidVelY(DronePosition *p, ControllerReadings r, Estimator* e);
 void calculatePidPitch(DronePosition *p, ControllerReadings r, Gyro* g);

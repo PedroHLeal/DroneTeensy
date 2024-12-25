@@ -31,6 +31,8 @@ private:
     BLA::Matrix<1, 1, float> Input;
 
 public:
+    float s00 = 0;
+    float s10 = 0;
     Kalman2d(float InputAccuracy, float MeasurementAccuracy);
     float filter(
         float Input,

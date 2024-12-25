@@ -1,23 +1,43 @@
 #include "estimations.h"
 
-void Estimator::calculateEstimations(Gyro *g, PX4Flow *px4flow, RangeSensor *rs, float dt)
+void Estimator::calculateEstimations(Gyro *g, MTF02P* mtf02p, float dt)
 {
-    positionY = k2d->filter((g->inertialAccelZ - 1) * 9.81 * 1000, rs->distance, dt);
-    float px4ReadX = -px4flow->get_vel_y(positionY);
-    float px4ReadY = -px4flow->get_vel_x(positionY);
+    MICOLINK_PAYLOAD_RANGE_SENSOR_t optFlow = mtf02p->payload;
+    k2d->filter((g->inertialAccelZ - 1) * 9.81 * 1000, optFlow.distance, dt);
+    positionZ = k2d->s00;
+    velZ = k2d->s10;
     isPositioningAvailable = true;
-    if (px4flow->quality_integral() < 100 || isnan(px4ReadX) || isnan(px4ReadY) || isinf(px4ReadX) || isinf(px4ReadY))
+    if (optFlow.flow_quality < 70 || positionZ < 200)
     {
         isPositioningAvailable = false;
-        px4ReadX = 0;
-        px4ReadY = 0;
+        estimatedVelX = 0;
+        estimatedVelY = 0;
+        estimatedPosX = 0;
+        estimatedPosY = 0;
+        return;
     }
-    kalman1d(estimatedVelX, velXUncertainty, g->inertialAccelX * 9.8 * 8, 4, px4ReadX, 3, &estimatedVelX, &velXUncertainty, dt);
-    kalman1d(estimatedVelY, velYUncertainty, g->inertialAccelY * 9.8 * 8, 4, px4ReadY, 3, &estimatedVelY, &velYUncertainty, dt);
-    // Serial.println(String(estimatedVelX) + " " + String(estimatedVelY));
 
-    lastPX4ReadX = px4ReadX;
-    lastPX4ReadY = px4ReadY;
+    float flowX = (-optFlow.flow_vel_y * 0.5) + g->gY;
+    float flowY = (-optFlow.flow_vel_x * 0.5) - g->gX;
+
+    filterFLowX->input(flowX);
+    flowX = filterFLowX->output();
+    filterFLowY->input(flowY);
+    flowY = filterFLowY->output();
+
+    flowX = (flowX * positionZ)/1000;
+    flowY = (flowY * positionZ)/1000;
+
+    kalman1d(estimatedVelX, velXUncertainty, g->inertialAccelX * 9.81, 10, flowX, 3, &estimatedVelX, &velXUncertainty, dt);
+    kalman1d(estimatedVelY, velYUncertainty, g->inertialAccelY * 9.81, 10, flowY, 3, &estimatedVelY, &velYUncertainty, dt);
+
+    // estimatedVelX += g->inertialAccelX * 9.8;
+    // estimatedVelY = flowY * 98;
+
+    estimatedPosX += estimatedVelX * dt;
+    estimatedPosY += estimatedVelY * dt;
+
+    // Serial.println(String(estimatedVelY) + " " + String(flowY));
 }
 
 void Estimator::resetEstimations()
@@ -25,5 +45,8 @@ void Estimator::resetEstimations()
     estimatedVelX = 0;
     estimatedVelY = 0;
     estimatedVelZ = 0;
-    positionY = 0;
+    estimatedPosX = 0;
+    estimatedPosY = 0;
+    positionZ = 0;
+    velZ = 0;
 }
